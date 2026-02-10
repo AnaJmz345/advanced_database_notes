@@ -1,0 +1,1 @@
+# Challenge 1 is solving the first 5 lessons of sqlbolt
