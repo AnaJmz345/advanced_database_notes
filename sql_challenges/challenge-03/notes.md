@@ -7,3 +7,11 @@ I thought about it first I need to get all the data of table employees with the 
 
 
 - I applied this same thought process with all the sql bolt excercises of this session.
+
+- For the oracle excercises, the most difficult was the last one
+select shape, sum ( weight ) as shape_weight
+from   bricks
+group  by shape
+HAVING sum( weight )<4;
+
+Internally, SQL first groups the rows by shape. Then it calculates the total sum(weight) for each group. After the grouping and aggregation are complete, the HAVING clause filters out any groups whose total sum does not meet the specified condition. I also learned that the alias cannot be used in the having because the alias is calculated in the select, which is after the having.

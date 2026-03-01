@@ -23,3 +23,24 @@ SELECT role,COUNT(role)  FROM employees GROUP BY role;
 SELECT role, SUM(years_employed) FROM employees GROUP BY role HAVING role = "Engineer";
 
 
+-- Oracle free
+-- 1. Complete the following query to return the:
+
+-- Number of different shapes
+-- The standard deviation (stddev) of the unique weights
+
+select COUNT( distinct shape) AS number_of_shapes,
+       stddev(distinct weight) AS distinct_weight_stddev
+from   bricks;
+
+-- 2. Complete the following query to return the total weight for each shape stored in the bricks table:
+
+select shape, SUM(weight) as shape_weight
+from   bricks
+GROUP BY shape;
+
+-- 3. Complete the following query to find the shapes which have a total weight less than four:
+select shape, sum ( weight ) as shape_weight
+from   bricks
+group  by shape
+HAVING sum ( weight )<4;
