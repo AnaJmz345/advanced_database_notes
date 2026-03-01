@@ -1,35 +1,25 @@
--- Lesson 6
+-- Lesson 10
 
--- 1.Find the domestic and international sales for each movie 
+-- 1.Find the longest time that an employee has been at the studio 
+SELECT MAX(years_employed) FROM employees;
 
-SELECT title,domestic_sales,international_sales FROM movies INNER JOIN Boxoffice ON movies.id =  Boxoffice.Movie_Id;
+-- 2. For each role, find the average number of years employed by employees in that role
+SELECT role,AVG(years_employed) As average FROM employees GROUP BY role;
 
--- 2.Show the sales numbers for each movie that did better internationally rather than domestically
-SELECT title,domestic_sales,international_sales FROM movies INNER JOIN Boxoffice ON movies.id =  Boxoffice.Movie_Id WHERE international_sales > domestic_sales;
-
--- 3.List all the movies by their ratings in descending order
-SELECT title,rating FROM movies INNER JOIN Boxoffice ON movies.id =  Boxoffice.Movie_Id ORDER BY rating DESC
-
-
--- Lesson 7
-
--- 1. Find the list of all buildings that have employees
-
-SELECT DISTINCT building FROM employees;
-
--- 2. Find the list of all buildings and their capacity
-
-SELECT * FROM buildings;
-
--- 3. List all buildings and the distinct employee roles in each building (including empty buildings)
-SELECT DISTINCT buildings.building_name,employees.role FROM buildings LEFT JOIN employees ON buildings.building_name = employees.building;
+--3. Find the total number of employee years worked in each building
+SELECT building, SUM(years_employed) As average FROM employees GROUP BY building;
 
 
+-- Lesson 11
 
--- Interview question
--- Assume you're given two tables containing data about Facebook Pages and their respective likes (as in "Like a Facebook Page").
+--1. Find the number of Artists in the studio (without a HAVING clause)
 
--- Write a query to return the IDs of the Facebook pages that have zero likes. The output should be sorted in ascending order based on the page IDs.
+SELECT COUNT(role) AS "# artists" FROM employees WHERE role="Artist";
+
+-- 2. Find the number of Employees of each role in the studio 
+SELECT role,COUNT(role)  FROM employees GROUP BY role;
+
+--3. Find the total number of years employed by all Engineers
+SELECT role, SUM(years_employed) FROM employees GROUP BY role HAVING role = "Engineer";
 
 
-SELECT pages.page_id FROM pages LEFT OUTER JOIN page_likes ON pages.page_id = page_likes.page_id WHERE page_likes.page_id IS NULL ORDER BY pages.page_id;
