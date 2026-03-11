@@ -111,3 +111,12 @@ The ORDER BY brick_id inside OVER() creates a running window from the first row 
 The function SUM(weight) calculates the running weight by brick_id.
 
 Finally, the WHERE clause keeps only the rows where both values are greater than 4.
+
+-- Data lemur 
+
+The PARTITION BY department_id inside OVER() creates a window containing all employees in the same department.
+The function DENSE_RANK() assigns a salary rank within each department, ordered from the highest salary to the lowest.
+
+DENSE_RANK() is used instead of ROW_NUMBER() because employees with the same salary receive the same rank, which correctly handles duplicate salaries.
+
+Finally, the query keeps only employees whose salary rank is 3 or less, meaning they are among the top three salaries in their department.

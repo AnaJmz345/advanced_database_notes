@@ -62,3 +62,26 @@ from totals
 where weight_per_shape > 4
   and running_weight_by_id > 4
 order by brick_id;
+
+
+--- DATA LEMUR
+with ranked_employees as (
+    select
+        d.department_name,
+        e.name,
+        e.salary,
+        dense_rank() over (
+            partition by e.department_id
+            order by e.salary desc
+        ) as salary_rank
+    from employee e
+    join department d
+        on e.department_id = d.department_id
+)
+select
+    department_name,
+    name,
+    salary
+from ranked_employees
+where salary_rank <= 3
+order by department_name asc, salary desc, name asc;
