@@ -11,3 +11,7 @@ select b.*,
        ) median_weight_per_shape
 from   bricks b
 order  by shape, weight, brick_id;
+
+
+
+-- 5.Try it
