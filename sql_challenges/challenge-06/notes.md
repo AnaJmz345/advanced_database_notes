@@ -3,3 +3,14 @@
 ![alt text](image.png)
 ## Explanation
 I learned tht the current time can be obtained with SYSTIMESTAMP and the user can be also get with USER keyword. Also, I learned how to throw an exception in a trigger.
+
+# 2nd TRIGGER
+## Result
+![alt text](image.png)
+## Explanation
+
+
+# 3th TRIGGER
+## Result
+![alt text](image.png)
+## Explanation
