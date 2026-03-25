@@ -103,3 +103,24 @@ END;
 -- looks at the user who is deleting the row. If the user is ‘JOEMANAGER,’ the delete continues successfully.
 --  Otherwise, the delete fails and sends an error message. Handle any other database errors the same way you did
 -- in the insert trigger.
+CREATE OR REPLACE TRIGGER protect_delete
+BEFORE DELETE ON PET_CARE_LOG
+FOR EACH ROW
+BEGIN
+    IF USER = 'JOEMANAGER' THEN
+        NULL; -- lets the delete continue
+    ELSE
+        RAISE_APPLICATION_ERROR(
+            -20002,
+            'DELETE not allowed: current user is not JOEMANAGER'
+        );
+    END IF;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE_APPLICATION_ERROR(
+            -20001,
+            'Error in trigger protect_delete: ' || SQLERRM
+        );
+END;
+/
