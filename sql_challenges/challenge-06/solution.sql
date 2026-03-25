@@ -75,7 +75,27 @@ VALUES (1, SYSTIMESTAMP, 'Pet was fed and cleaned');
 -- will look at the current user and compare it with the value in the UPDATED_BY_USER column
 -- If the two are the same, the update proceeds. If they are different, the update raises an 
 -- exception and fails. Handle any other database errors the same way you did in the insert trigger.
+CREATE OR REPLACE TRIGGER protect_update
+BEFORE UPDATE ON PET_CARE_LOG
+FOR EACH ROW
+BEGIN
+    IF :OLD.UPDATED_BY_USER = USER THEN
+        :NEW.UPDATE_DATE := SYSTIMESTAMP;
+        :NEW.UPDATED_BY_USER := USER;
+    ELSE
+        RAISE_APPLICATION_ERROR(
+            -20002,
+            'Update not allowed: current user is different from UPDATED_BY_USER'
+        );
+    END IF;
 
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE_APPLICATION_ERROR(
+            -20001,
+            'Error in trigger protect_update: ' || SQLERRM
+        );
+END;
 
 
 -- 3. Trigger
