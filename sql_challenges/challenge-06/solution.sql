@@ -44,7 +44,12 @@ ADD (
     UPDATED_BY_USER VARCHAR2(100)
 );
 
--- First trigger asked
+-- 1. Trigger
+-- Create a trigger that fires before inserting each row in the PET_CARE_LOG table. The trigger will assign
+-- the current data and time to the UPDATE_DATE column. It will also assign the current user to the UPDATED_BY_USER 
+-- column. Use pseudocolumns to get the values that you need. Handle all errors in one general exception handler and 
+-- send an error message using the RAISE_APPLICATION_ERROR procedure.
+
 CREATE OR REPLACE TRIGGER protect_insert
 BEFORE INSERT ON PET_CARE_LOG
 FOR EACH ROW
@@ -64,3 +69,58 @@ INSERT INTO PRODUCT (PRODUCT_ID, DESCRIPTION)
 VALUES (1, 'Dog food');
 INSERT INTO PET_CARE_LOG (PRODUCT_ID, LOG_DATETIME, COMMENTS)
 VALUES (1, SYSTIMESTAMP, 'Pet was fed and cleaned');
+
+--2. trigger
+-- Create a trigger that fires before updating each row of the PET_CARE_LOG table. This trigger 
+-- will look at the current user and compare it with the value in the UPDATED_BY_USER column
+-- If the two are the same, the update proceeds. If they are different, the update raises an 
+-- exception and fails. Handle any other database errors the same way you did in the insert trigger.
+CREATE OR REPLACE TRIGGER protect_update
+BEFORE UPDATE ON PET_CARE_LOG
+FOR EACH ROW
+BEGIN
+    IF :OLD.UPDATED_BY_USER = USER THEN
+        :NEW.UPDATE_DATE := SYSTIMESTAMP;
+        :NEW.UPDATED_BY_USER := USER;
+    ELSE
+        RAISE_APPLICATION_ERROR(
+            -20002,
+            'Update not allowed: current user is different from UPDATED_BY_USER'
+        );
+    END IF;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE_APPLICATION_ERROR(
+            -20001,
+            'Error in trigger protect_update: ' || SQLERRM
+        );
+END;
+
+
+-- 3. Trigger
+-- Create a trigger that fires before any row is deleted from the PET_CARE_LOG table. This trigger 
+-- looks at the user who is deleting the row. If the user is ‘JOEMANAGER,’ the delete continues successfully.
+--  Otherwise, the delete fails and sends an error message. Handle any other database errors the same way you did
+-- in the insert trigger.
+CREATE OR REPLACE TRIGGER protect_delete
+BEFORE DELETE ON PET_CARE_LOG
+FOR EACH ROW
+BEGIN
+    IF USER = 'JOEMANAGER' THEN
+        NULL; -- lets the delete continue
+    ELSE
+        RAISE_APPLICATION_ERROR(
+            -20002,
+            'DELETE not allowed: current user is not JOEMANAGER'
+        );
+    END IF;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE_APPLICATION_ERROR(
+            -20001,
+            'Error in trigger protect_delete: ' || SQLERRM
+        );
+END;
+/

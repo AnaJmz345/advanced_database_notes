@@ -5,5 +5,5 @@ You want to improve and automate the House-o-Pets database system by adding some
 2. Create a trigger that fires before updating each row of the PET_CARE_LOG table. This trigger will look at the current user and compare it with the value in the UPDATED_BY_USER column. If the two are the same, the update proceeds. If they are different, the update raises an exception and fails. Handle any other database errors the same way you did in the insert trigger.
 3. Create a trigger that fires before any row is deleted from the PET_CARE_LOG table. This trigger looks at the user who is deleting the row. If the user is ‘JOEMANAGER,’ the delete continues successfully. Otherwise, the delete fails and sends an error message. Handle any other database errors the same way you did in the insert trigger.
 
-Link con el schema:
+Link with db schema:
 https://www.relationaldbdesign.com/programming-plsql/module1/database-pet-store-schema.php 
