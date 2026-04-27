@@ -123,3 +123,34 @@ WHERE patient_id = 5432;
 
 
 -- Exercise 5 — Discussion: real-world scenarios
+
+-- Scenario A:
+
+-- A reporting table gets loaded once per night (batch ETL).
+-- During the day, analysts run SELECT queries by date range.
+-- The table has 50 million rows.
+-- → Index on date? Yes/No, why?
+-- Yes because the modifications are done once aat night, not during working hours so it can be slower in that time. Also, 
+-- during the day, only selects are applied and since the table is very large, the index can help reduce the amount of 
+-- data scanned
+
+-- Scenario B:
+-- An OLTP orders table gets 10,000 inserts per minute.
+-- Support staff look up orders by customer_id or order_status.
+-- order_status has 4 values: pending, processing, shipped, cancelled.
+-- → What indexes would you add?
+
+-- I would add an index on customer_id because support staff use it to look up orders and it is probably more selective. 
+-- I would be careful with order_status because it only has 4 possible values, so it has low cardinality and an index 
+-- may not help much. The biggest concern is that this is an OLTP table with 10,000 inserts per minute, so adding too 
+-- many indexes would slow down inserts.
+
+-- Scenario C:
+-- A patient table has an email column (unique per patient).
+-- There are 5 million patients.
+-- The app frequently does: WHERE email = 'user@example.com'
+-- → What kind of index would be best here?
+
+-- I would add a unique index on email because each email is unique per patient and the app frequently searches by exact 
+-- email. This is a good case for an index because email has high selectivity, so Oracle can find the row very fast. 
+--The unique index also helps protect the data by preventing duplicate emails.
