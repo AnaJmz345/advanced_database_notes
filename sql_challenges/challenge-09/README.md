@@ -97,15 +97,6 @@ SELECT account_id, owner_name, balance FROM accounts ORDER BY account_id;
 -- Can they? Can they do the same with post_payment()? Why or why not?
 
  
-
- 
-
- 
-
- 
-
- 
-
 -- Lesson 04: Stored Procedures — Package the Logic in the Database
 
 -- ============================================================
