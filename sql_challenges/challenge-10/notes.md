@@ -4,7 +4,7 @@ In this exercise, I used the prefeined schema Academic(AD) from freesql, using u
 
 # Excercise 2
 
-In this exercise, I used DBMS_METADATA.GET_DDL to extract the structure of one of my tables (AD_COURSE_DETAILS). The output shows the full CREATE TABLE statement, including column names, data types, and constraints. I was able to identify how Oracle defines each column, whether it allows null values, and how primary keys or relationships are established. This helped me understand that DDL represents the exact structure of the database and can be used to recreate the table in another environment.
+I used DBMS_METADATA.GET_DDL to extract the full DDL of all the tables in my schema. The output shows that my schema has 7 tables: ACCOUNTS, CUSTOMER, CUSTOMER_SALE, DOC_CHUNKS, PET_CARE_LOG, PRODUCT, and SALE_ITEM. Each table includes its column definitions, data types, constraints, and some Oracle storage details. I noticed that most tables use NUMBER columns as identifiers, and several tables have primary keys, such as ACCOUNT_ID, CUST_ID, PRODUCT_ID, and composite primary keys like PRODUCT_ID + LOG_DATETIME in PET_CARE_LOG and SALES_ID + PRODUCT_ID in SALE_ITEM. I also identified foreign key relationships: CUSTOMER_SALE references CUSTOMER, PET_CARE_LOG references PRODUCT, and SALE_ITEM references both CUSTOMER_SALE and PRODUCT. Another important part is that the ACCOUNTS table includes a CHECK constraint to make sure the balance is not negative. Also, the DOC_CHUNKS table is different because it uses an identity column for CHUNK_ID and includes a VECTOR(384, FLOAT32) column, which suggests it may be used for storing embeddings or vector data. 
 
 # Excercise 3
 

@@ -26,5 +26,9 @@ END;
 SET LONG 100000
 SET PAGESIZE 0
 
--- Picked one table
-SELECT DBMS_METADATA.GET_DDL('TABLE', 'AD_COURSE_DETAILS') FROM DUAL;
+-- Saw all my tables 
+SELECT DBMS_METADATA.GET_DDL('TABLE', table_name)
+FROM user_tables
+ORDER BY table_name;
+
+-- Excercise 3
