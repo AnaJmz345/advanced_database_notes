@@ -1,257 +1,263 @@
--- Lesson 05: Schema Backup & Restore
--- File 08: Class Exercises (self-contained)
-
--- ============================================
--- EXERCISE 1: Explore your schema
--- ============================================
--- List all the objects in your schema using user_objects
--- Group by object_type and count them
--- Which object types do you have?
-
--- Sample solution:
-SELECT object_type, COUNT(*) AS cnt
-FROM user_objects
-GROUP BY object_type
-ORDER BY object_type;
-
--- Also get details:
-SELECT object_name, object_type, created, last_ddl_time
-FROM user_objects
-ORDER BY object_type, object_name;
-
--- ============================================
--- EXERCISE 2: Basic GET_DDL
--- ============================================
--- First, set transform params for clean output:
-BEGIN
-  DBMS_METADATA.SET_TRANSFORM_PARAM(DBMS_METADATA.SESSION_TRANSFORM, 'PRETTY', true);
-  DBMS_METADATA.SET_TRANSFORM_PARAM(DBMS_METADATA.SESSION_TRANSFORM, 'SQLTERMINATOR', true);
-  DBMS_METADATA.SET_TRANSFORM_PARAM(DBMS_METADATA.SESSION_TRANSFORM, 'SEGMENT_ATTRIBUTES', false);
-  DBMS_METADATA.SET_TRANSFORM_PARAM(DBMS_METADATA.SESSION_TRANSFORM, 'STORAGE', false);
-  DBMS_METADATA.SET_TRANSFORM_PARAM(DBMS_METADATA.SESSION_TRANSFORM, 'TABLESPACE', false);
-END;
-/
-
-SET LONG 100000
-SET PAGESIZE 0
-
--- Get DDL for one of your tables (replace MY_TABLE with actual name)
-SELECT DBMS_METADATA.GET_DDL('TABLE', 'MY_TABLE') FROM DUAL;
-
--- Or get all tables at once:
-SELECT DBMS_METADATA.GET_DDL('TABLE', table_name)
-FROM user_tables
-ORDER BY table_name;
-
--- Identify the key parts in the output:
---   - Column definitions (NAME, TYPE, NULL/NOT NULL)
---   - Constraints (PRIMARY KEY, FK, CHECK)
---   - Storage parameters (if included)
-
--- ============================================
--- EXERCISE 3: Clean DDL for portability
--- ============================================
--- Remove schema names from DDL so it works in any schema
-
-BEGIN
-  DBMS_METADATA.SET_TRANSFORM_PARAM(DBMS_METADATA.SESSION_TRANSFORM, 'EMIT_SCHEMA', false);
-  DBMS_METADATA.SET_TRANSFORM_PARAM(DBMS_METADATA.SESSION_TRANSFORM, 'PRETTY', true);
-  DBMS_METADATA.SET_TRANSFORM_PARAM(DBMS_METADATA.SESSION_TRANSFORM, 'SQLTERMINATOR', true);
-  DBMS_METADATA.SET_TRANSFORM_PARAM(DBMS_METADATA.SESSION_TRANSFORM, 'SEGMENT_ATTRIBUTES', false);
-  DBMS_METADATA.SET_TRANSFORM_PARAM(DBMS_METADATA.SESSION_TRANSFORM, 'STORAGE', false);
-  DBMS_METADATA.SET_TRANSFORM_PARAM(DBMS_METADATA.SESSION_TRANSFORM, 'TABLESPACE', false);
-END;
-/
-
--- Compare the output with and without EMIT_SCHEMA:
--- With EMIT_SCHEMA (default):   CREATE TABLE "SALES"."ORDERS" ...
--- Without EMIT_SCHEMA:          CREATE TABLE "ORDERS" ...
-
--- Try it yourself:
-SELECT DBMS_METADATA.GET_DDL('TABLE', table_name)
-FROM user_tables
-WHERE ROWNUM = 1;
-
--- ============================================
--- EXERCISE 4: Plan a migration
--- ============================================
--- You're moving to a new schema with a different name.
--- What changes would you need to make to your exported DDL?
-
--- Scenario: Migrating from SCHEMA_OLD to SCHEMA_NEW
-
--- 1. First, identify schema names embedded in your DDL:
-SELECT DBMS_METADATA.GET_DDL('TABLE', table_name)
-FROM user_tables
-WHERE table_name = 'ANY_TABLE_WITH_FK';
-
--- 2. Check for schema-qualified references:
-SELECT constraint_name, table_name, r_constraint_name
-FROM user_constraints
-WHERE constraint_type = 'R';
-
--- 3. If you find FK constraints pointing to other schemas, you need to:
---    - Update the REFERENCES clause to point to new schema name
---    - Or make sure target table exists in same schema
-
--- 4. Write a migration checklist:
---    □ Export all DDL with EMIT_SCHEMA = false
---    □ Review FK constraints for schema references
---    □ Update constraint references if needed
---    □ Reload in order: tables → constraints → indexes → views → code
-
--- ============================================
--- EXERCISE 5: Dependency order
--- ============================================
--- Look at user_dependencies to understand object relationships
-
--- See all dependencies in your schema:
-SELECT referenced_name, referencing_name, referencing_type
-FROM user_dependencies
-ORDER BY referenced_name;
-
--- Find objects that depend on TABLES (to know what needs tables first):
-SELECT referencing_name, referencing_type
-FROM user_dependencies
-WHERE referenced_name IN (
-  SELECT table_name FROM user_tables
-)
-ORDER BY referencing_type, referencing_name;
-
--- Find direct dependencies for a specific object (replace PROC_NAME):
-SELECT referenced_name, referenced_type
-FROM user_dependencies
-WHERE referencing_name = 'PROC_NAME';
-
--- Build a dependency tree for PL/SQL objects:
-SELECT referencing_name, referencing_type,
-       LISTAGG(referenced_name, ', ') WITHIN GROUP (ORDER BY referenced_name) AS dependencies
-FROM user_dependencies
-WHERE referencing_type IN ('PACKAGE', 'PROCEDURE', 'FUNCTION')
-GROUP BY referencing_name, referencing_type
-ORDER BY referencing_type, referencing_name;
-
--- ============================================
--- EXERCISE 6: Design your own backup strategy
--- ============================================
--- Given:
---   - No expdp access (no directory privileges)
---   - Need to move your schema to another database
---   - Only have SQL access
+-- ============================================================
+-- Lesson 03: SQLAlchemy ORM + Alembic Migrations
+-- File: 01_setup_schema.sql
+-- Purpose: V1 Schema — teams, users, tasks
 --
--- Design the steps you would take:
+-- Run this in your FreeSQL worksheet to create the base tables.
+-- ============================================================
 
--- STEP 1: Document your current schema structure
-SELECT object_type, COUNT(*) FROM user_objects GROUP BY object_type;
-SELECT table_name, num_rows FROM user_tables ORDER BY num_rows DESC;
+-- Drop tables if they exist (clean start)
+DROP TABLE IF EXISTS tasks;
+DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS teams;
 
--- STEP 2: Extract all DDL (run all these)
-BEGIN
-  DBMS_METADATA.SET_TRANSFORM_PARAM(DBMS_METADATA.SESSION_TRANSFORM, 'PRETTY', true);
-  DBMS_METADATA.SET_TRANSFORM_PARAM(DBMS_METADATA.SESSION_TRANSFORM, 'SQLTERMINATOR', true);
-  DBMS_METADATA.SET_TRANSFORM_PARAM(DBMS_METADATA.SESSION_TRANSFORM, 'SEGMENT_ATTRIBUTES', false);
-  DBMS_METADATA.SET_TRANSFORM_PARAM(DBMS_METADATA.SESSION_TRANSFORM, 'STORAGE', false);
-  DBMS_METADATA.SET_TRANSFORM_PARAM(DBMS_METADATA.SESSION_TRANSFORM, 'TABLESPACE', false);
-END;
-/
+-- ============================================================
+-- TEAMS
+-- ============================================================
+CREATE TABLE teams (
+    id          NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name        VARCHAR2(50)  NOT NULL UNIQUE,
+    description VARCHAR2(200),
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
--- Extract tables (spool to file or copy output):
-SELECT DBMS_METADATA.GET_DDL('TABLE', table_name) FROM user_tables;
+-- ============================================================
+-- USERS
+-- ============================================================
+CREATE TABLE users (
+    id          NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    username    VARCHAR2(50)  NOT NULL UNIQUE,
+    email       VARCHAR2(100) NOT NULL,
+    full_name   VARCHAR2(100),
+    team_id     NUMBER,
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_users_team
+        FOREIGN KEY (team_id) REFERENCES teams(id)
+);
 
--- Extract indexes:
-SELECT DBMS_METADATA.GET_DDL('INDEX', index_name) FROM user_indexes;
+-- ============================================================
+-- TASKS
+-- ============================================================
+CREATE TABLE tasks (
+    id           NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    title        VARCHAR2(200) NOT NULL,
+    description  VARCHAR2(1000),
+    status       VARCHAR2(20)  DEFAULT 'open',
+    assigned_to  NUMBER,
+    created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at   TIMESTAMP,
+    CONSTRAINT fk_tasks_user
+        FOREIGN KEY (assigned_to) REFERENCES users(id)
+);
 
--- Extract views:
-SELECT DBMS_METADATA.GET_DDL('VIEW', view_name) FROM user_views;
+-- ============================================================
+-- SEED DATA
+-- ============================================================
 
--- Extract sequences:
-SELECT DBMS_METADATA.GET_DDL('SEQUENCE', sequence_name) FROM user_sequences;
+-- Teams
+INSERT INTO teams (name, description) VALUES ('Engineering', 'Software development team');
+INSERT INTO teams (name, description) VALUES ('Product', 'Product management team');
 
--- Extract constraints:
-SELECT DBMS_METADATA.GET_DDL('CONSTRAINT', constraint_name) FROM user_constraints;
+-- Users
+INSERT INTO users (username, email, full_name, team_id)
+    VALUES ('alice_dev', 'alice@example.com', 'Alice Smith', 1);
+INSERT INTO users (username, email, full_name, team_id)
+    VALUES ('bob_dev', 'bob@example.com', 'Bob Jones', 1);
+INSERT INTO users (username, email, full_name, team_id)
+    VALUES ('carol_pm', 'carol@example.com', 'Carol White', 2);
 
--- Extract code:
-SELECT DBMS_METADATA.GET_DDL('PROCEDURE', object_name) FROM user_objects WHERE object_type = 'PROCEDURE';
-SELECT DBMS_METADATA.GET_DDL('FUNCTION', object_name) FROM user_objects WHERE object_type = 'FUNCTION';
-SELECT DBMS_METADATA.GET_DDL('PACKAGE', object_name) FROM user_objects WHERE object_type = 'PACKAGE';
+-- Tasks
+INSERT INTO tasks (title, description, status, assigned_to)
+    VALUES ('Fix login bug', 'Users cannot log in with SSO', 'open', 1);
+INSERT INTO tasks (title, description, status, assigned_to)
+    VALUES ('Design new dashboard', 'Create mockups for analytics page', 'in_progress', 3);
+INSERT INTO tasks (title, description, status, assigned_to)
+    VALUES ('Update dependencies', 'Upgrade numpy and pandas', 'open', 2);
 
--- STEP 3: Reload in new schema (use proper order)
--- 1. Create tables (no constraints yet)
--- 2. Create sequences
--- 3. Create indexes
--- 4. Add constraints (enable FKs)
--- 5. Create views
--- 6. Create procedures/functions/packages
--- 7. Create triggers
+COMMIT;
 
--- STEP 4: Verify everything transferred
-SELECT object_type, COUNT(*) FROM user_objects GROUP BY object_type;
-SELECT table_name, num_rows FROM user_tables ORDER BY table_name;
-SELECT index_name, table_name FROM user_indexes ORDER BY index_name;
+-- ============================================================
+-- VERIFY
+-- ============================================================
+SELECT 'Teams:' AS section, name FROM teams
+UNION ALL
+SELECT 'Users:' AS section, username FROM users
+UNION ALL
+SELECT 'Tasks:' AS section, title FROM tasks;
 
--- ============================================
--- DISCUSSION QUESTIONS
--- ============================================
+ 
 
--- Q1: What are the limitations of DBMS_METADATA vs expdp?
--- A:  DBMS_METADATA only exports DDL (no data), requires manual spool/cursor,
---     and can't handle very large schemas easily.
---     expdp is faster, can export data, handles large schemas, but needs directory access.
---     Choose DBMS_METADATA when you have no DBA access or need educational visibility.
---     Choose expdp when you have proper access and need speed/completeness.
+-----
 
--- Q2: If you have circular dependencies (A depends on B, B depends on A),
---     how would you handle the reload?
--- A:  Oracle handles most circular dependencies automatically if you create
---     objects first and enable constraints later.
---     For PL/SQL circular dependencies, create the package/spec first,
---     then the package/body second.
---     DBMS_METADATA returns objects in a valid order - trust the dependency analysis.
+ 
 
--- Q3: Your company is migrating from one Oracle database to another.
---     They give you read-only access to the old database and want you
---     to recreate the schema on the new database.
---     What's your plan?
--- A:  1. Document source schema structure (user_objects, user_tables, etc.)
---     2. Set EMIT_SCHEMA=false and extract clean DDL
---     3. Check for dependencies and schema-qualified references
---     4. Review and clean up the DDL (remove storage, fix schema names)
---     5. Create new schema user on target
---     6. Run DDL in proper order (tables → constraints → indexes → views → code)
---     7. Verify with object counts and sample queries
---     8. If possible, export sample data via INSERT statements or CSV
+ 
 
--- ============================================
--- FURTHER INVESTIGATION
--- ============================================
--- The techniques in this lesson work on freesql.com with basic SQL access.
--- When you have full Oracle access (DBA, directory privileges, etc.),
--- consider these more advanced approaches:
+---
 
--- 1. expdp / impdp (Data Pump)
---    The standard Oracle export/import tool.
---    Requires: CREATE ANY DIRECTORY privilege + directory object.
---    Can export schemas, tablespaces, full databases.
---    Handles data + DDL (unlike DBMS_METADATA which is DDL only).
---    Example:
---    expdp system/password@db SCHEMAS=MY_SCHEMA DIRECTORY=MY_DIR DUMPFILE=backup.dmp
+# Lesson Exercises
 
--- 2. SQLcl "script" command
---    SQL Developer Command Line can export entire schema to JSON or ZIP.
---    Has a "rollling migration" feature for schema comparisons.
+---
 
--- 3. Oracle SQL Developer (GUI)
---    Has "Database Export" wizard for schema backup.
---    Point-and-click, no CLI needed.
+# Exercise 1 — Model Design (10 min)
 
--- 4. Partitioned tables & transportable tablespaces
---    For very large schemas, Oracle's transportable tablespace
---    feature can move entire tablespaces between databases.
+## Scenario
 
--- 5. Cloud-native tools (if using Oracle Cloud)
---    Oracle Cloud Infrastructure Database Migration service
---    handles full schema migration with automatic conversion.
+Your task system needs a `comments` table.
 
--- Research these on your own when you have access to a full Oracle environment.
--- The DBMS_METADATA approach you learned here works everywhere — good baseline skill.
+Each comment belongs to:
+- one task
+- one user
 
+---
+
+## Task
+
+Create a new Colab cell and write the `Comment` model.
+
+### Required Fields
+
+- `id`
+- `task_id`
+- `user_id`
+- `content`
+- `created_at`
+
+---
+
+## Questions
+
+1. What relationships should `Comment` have?
+2. Should `Task` have a `comments` relationship?
+3. What should happen to comments when a task is deleted?
+
+---
+
+# Exercise 2 — Migration Creation (10 min)
+
+## Scenario
+
+You added the `Comment` model.
+
+Now generate a migration programmatically.
+
+---
+
+## Task
+
+Run:
+
+```python
+command.revision(
+    alembic_cfg,
+    autogenerate=True,
+    message="add comments table"
+)
+```
+
+---
+
+## Then Inspect the Migration
+
+```python
+import glob
+
+migration_files = sorted(
+    glob.glob('/content/project/alembic/versions/*.py')
+)
+
+for f in migration_files:
+    print(f)
+```
+
+---
+
+## Open the Generated Migration
+
+```python
+latest = migration_files[-1]
+
+with open(latest) as f:
+    print(f.read())
+```
+
+---
+
+## Questions
+
+1. What does `upgrade()` do?
+2. What does `downgrade()` do?
+3. What happens if you downgrade this migration?
+
+---
+
+## Bonus
+
+Add a CHECK constraint so `content != ''`
+
+---
+
+# Exercise 3 — CRUD Challenge (10 min)
+
+## Scenario
+
+Write a script that:
+
+1. Creates a team called `"DevOps"`
+2. Creates a user `"diana_ops"`
+3. Creates 3 tasks with different priorities
+4. Prints task count
+5. Closes one task
+6. Deletes the lowest priority task
+
+---
+
+## Requirements
+
+- Use ORM only
+- Use relationships
+- Print output clearly
+
+---
+
+# Exercise 4 — Migration Rollback (5 min)
+
+## Scenario
+
+You added a bad column:
+`estimated_hours`
+
+The migration has already been applied.
+
+---
+
+## Task
+
+Rollback the migration programmatically.
+
+### Example
+
+```python
+command.downgrade(alembic_cfg, "-1")
+```
+
+---
+
+## Questions
+
+1. What happens to the column?
+2. What happens to the data?
+
+---
+
+# Exercise 5 — Concept Check (5 min)
+
+Answer briefly:
+
+1. Why use ORM instead of raw SQL?
+2. Why use migrations?
+3. When would you rollback?
+4. Difference between `add()` and `commit()`?
+5. Why are relationships useful?
+
+---
